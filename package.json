@@ -1,0 +1,23 @@
+{
+  "name": "ugc-video-tool-sora2",
+  "version": "1.0.0",
+  "description": "Sora 2 API統合動画生成SaaS",
+  "main": "api/index.py",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step required for Python'",
+    "start": "python api/index.py"
+  },
+  "keywords": [
+    "sora2",
+    "openai",
+    "video-generation",
+    "saas",
+    "fastapi"
+  ],
+  "author": "UGC Video Tool",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

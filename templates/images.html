@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生成画像一覧 - UGC動画作成ツール</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .nav-buttons {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .nav-button {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s;
+        }
+
+        .nav-button:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .image-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .image-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .image-container {
+            width: 100%;
+            height: 300px;
+            overflow: hidden;
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .image-info {
+            padding: 15px;
+        }
+
+        .image-filename {
+            font-size: 14px;
+            color: #333;
+            font-weight: bold;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+
+        .image-details {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .image-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .no-images {
+            background: white;
+            padding: 50px;
+            border-radius: 15px;
+            text-align: center;
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+
+        .modal-content {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .close {
+            position: absolute;
+            top: 20px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #bbb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🖼️ 生成画像一覧</h1>
+            <p>Gemini 2.5 Flash Imageで生成された画像</p>
+        </div>
+
+        <div class="nav-buttons">
+            <a href="/" class="nav-button">← トップページに戻る</a>
+        </div>
+
+        <div id="loading" class="loading">
+            読み込み中...
+        </div>
+
+        <div id="images-container"></div>
+    </div>
+
+    <!-- 画像拡大表示用モーダル -->
+    <div id="imageModal" class="modal">
+        <span class="close">&times;</span>
+        <img class="modal-content" id="modalImage">
+    </div>
+
+    <script>
+        // 画像一覧を読み込み
+        async function loadImages() {
+            try {
+                const response = await fetch('/api/list-generated-images');
+                const data = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                if (data.count === 0) {
+                    document.getElementById('images-container').innerHTML = `
+                        <div class="no-images">
+                            まだ画像が生成されていません。<br>
+                            トップページから動画を生成してください。
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const grid = document.createElement('div');
+                grid.className = 'images-grid';
+                
+                data.images.forEach(image => {
+                    const card = createImageCard(image);
+                    grid.appendChild(card);
+                });
+                
+                document.getElementById('images-container').appendChild(grid);
+            } catch (error) {
+                document.getElementById('loading').innerHTML = `
+                    <div style="color: #ff4444;">
+                        エラーが発生しました: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        function createImageCard(image) {
+            const card = document.createElement('div');
+            card.className = 'image-card';
+            
+            const sizeKB = (image.size / 1024).toFixed(2);
+            const date = new Date(image.modified * 1000).toLocaleString('ja-JP');
+            
+            card.innerHTML = `
+                <div class="image-container">
+                    <img src="${image.url}" alt="${image.filename}" onclick="openModal('${image.url}')">
+                </div>
+                <div class="image-info">
+                    <div class="image-filename">${image.filename}</div>
+                    <div class="image-details">サイズ: ${sizeKB} KB</div>
+                    <div class="image-details">作成日時: ${date}</div>
+                    <div class="image-actions">
+                        <a href="${image.url}" download class="btn btn-primary">ダウンロード</a>
+                        <button onclick="openModal('${image.url}')" class="btn btn-secondary">拡大表示</button>
+                    </div>
+                </div>
+            `;
+            
+            return card;
+        }
+        
+        // モーダルで画像を拡大表示
+        function openModal(imageUrl) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            modal.style.display = 'block';
+            modalImg.src = imageUrl;
+        }
+        
+        // モーダルを閉じる
+        document.querySelector('.close').onclick = function() {
+            document.getElementById('imageModal').style.display = 'none';
+        };
+        
+        window.onclick = function(event) {
+            const modal = document.getElementById('imageModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        };
+        
+        // ページ読み込み時に画像を取得
+        window.onload = loadImages;
+    </script>
+</body>
+</html>
+

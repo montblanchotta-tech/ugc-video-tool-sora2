@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UGC動画作成ツール</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .upload-area:hover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        .upload-area.dragover {
+            border-color: #007bff;
+            background-color: #e3f2fd;
+        }
+        .progress-container {
+            display: none;
+        }
+        .video-preview {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 15px;
+            right: -50%;
+            width: 100%;
+            height: 2px;
+            background-color: #dee2e6;
+            z-index: 1;
+        }
+        .step.active::after,
+        .step.completed::after {
+            background-color: #007bff;
+        }
+        .step-number {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: #dee2e6;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            position: relative;
+            z-index: 2;
+        }
+        .step.active .step-number {
+            background-color: #007bff;
+        }
+        .step.completed .step-number {
+            background-color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h2 class="mb-0">
+                            <i class="fas fa-video me-2"></i>
+                            UGC動画作成ツール
+                        </h2>
+                        <!-- タブナビゲーション -->
+                        <ul class="nav nav-tabs mt-3" id="mainTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="traditional-tab" data-bs-toggle="tab" data-bs-target="#traditional" type="button" role="tab">
+                                    <i class="fas fa-user me-2"></i>従来のUGC動画
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="sora-tab" data-bs-toggle="tab" data-bs-target="#sora" type="button" role="tab">
+                                    <i class="fas fa-magic me-2"></i>Sora 2 AI動画
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <!-- タブコンテンツ -->
+                        <div class="tab-content" id="mainTabContent">
+                            <!-- 従来のUGC動画タブ -->
+                            <div class="tab-pane fade show active" id="traditional" role="tabpanel">
+                                <!-- ステップインジケーター -->
+                                <div class="step-indicator">
+                            <div class="step active" id="step1">
+                                <div class="step-number">1</div>
+                                <div class="step-title">商品画像</div>
+                            </div>
+                            <div class="step" id="step2">
+                                <div class="step-number">2</div>
+                                <div class="step-title">スクリプト</div>
+                            </div>
+                            <div class="step" id="step3">
+                                <div class="step-number">3</div>
+                                <div class="step-title">設定</div>
+                            </div>
+                            <div class="step" id="step4">
+                                <div class="step-number">4</div>
+                                <div class="step-title">生成</div>
+                            </div>
+                        </div>
+
+                        <!-- フォーム -->
+                        <form id="videoForm">
+                            <!-- Step 1: 商品画像アップロード -->
+                            <div class="step-content" id="stepContent1">
+                                <h4><i class="fas fa-image me-2"></i>商品画像をアップロード</h4>
+                                <div class="upload-area" id="uploadArea">
+                                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                    <p class="mb-2">商品画像をドラッグ&ドロップまたはクリックして選択</p>
+                                    <p class="text-muted small">対応形式: JPG, PNG, WebP</p>
+                                    <input type="file" id="productImage" accept="image/*" style="display: none;">
+                                </div>
+                                <div id="imagePreview" class="mt-3" style="display: none;">
+                                    <img id="previewImg" class="img-fluid rounded" style="max-height: 300px;">
+                                    <div class="mt-2">
+                                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeImage()">
+                                            <i class="fas fa-trash me-1"></i>削除
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Step 2: スクリプト入力 -->
+                            <div class="step-content" id="stepContent2" style="display: none;">
+                                <h4><i class="fas fa-edit me-2"></i>動画スクリプト</h4>
+                                <div class="mb-3">
+                                    <label for="script" class="form-label">動画で話す内容を入力してください</label>
+                                    <textarea class="form-control" id="script" rows="8" 
+                                        placeholder="例: こんにちは！今日は素晴らしい商品をご紹介します。この商品は..."></textarea>
+                                    <div class="form-text">文字数: <span id="scriptLength">0</span>文字</div>
+                                </div>
+                            </div>
+
+                            <!-- Step 3: 設定 -->
+                            <div class="step-content" id="stepContent3" style="display: none;">
+                                <h4><i class="fas fa-cog me-2"></i>生成設定</h4>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="modelStyle" class="form-label">モデルスタイル</label>
+                                            <select class="form-select" id="modelStyle">
+                                                <option value="realistic">リアル</option>
+                                                <option value="anime">アニメ</option>
+                                                <option value="artistic">アーティスティック</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="voiceStyle" class="form-label">音声スタイル</label>
+                                            <select class="form-select" id="voiceStyle">
+                                                <option value="friendly">親しみやすい</option>
+                                                <option value="professional">プロフェッショナル</option>
+                                                <option value="energetic">エネルギッシュ</option>
+                                                <option value="calm">落ち着いた</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Step 4: 生成 -->
+                            <div class="step-content" id="stepContent4" style="display: none;">
+                                <h4><i class="fas fa-play me-2"></i>動画生成</h4>
+                                
+                                <!-- 進行状況表示 -->
+                                <div class="progress-container" id="progressContainer">
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between">
+                                            <span id="progressText">準備中...</span>
+                                            <span id="progressPercent">0%</span>
+                                        </div>
+                                        <div class="progress">
+                                            <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 生成ボタン -->
+                                <div id="generateButtonContainer">
+                                    <button type="submit" class="btn btn-success btn-lg">
+                                        <i class="fas fa-video me-2"></i>動画を生成
+                                    </button>
+                                </div>
+
+                                <!-- 結果表示 -->
+                                <div id="resultContainer" style="display: none;" class="mt-4">
+                                    <div class="alert alert-success">
+                                        <h5><i class="fas fa-check-circle me-2"></i>動画生成完了！</h5>
+                                        <p id="resultMessage"></p>
+                                        <div id="videoPreview" class="mt-3"></div>
+                                        <div class="mt-3">
+                                            <button type="button" class="btn btn-primary" id="downloadVideo">
+                                                <i class="fas fa-download me-2"></i>動画をダウンロード
+                                            </button>
+                                            <button type="button" class="btn btn-outline-primary" id="downloadThumbnail">
+                                                <i class="fas fa-image me-2"></i>サムネイルをダウンロード
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ナビゲーションボタン -->
+                            <div class="d-flex justify-content-between mt-4">
+                                <button type="button" class="btn btn-outline-secondary" id="prevBtn" onclick="previousStep()" style="display: none;">
+                                    <i class="fas fa-arrow-left me-2"></i>前へ
+                                </button>
+                                <button type="button" class="btn btn-primary" id="nextBtn" onclick="nextStep()">
+                                    次へ<i class="fas fa-arrow-right ms-2"></i>
+                                </button>
+                            </div>
+                        </form>
+                            </div>
+                            
+                            <!-- Sora 2 AI動画タブ -->
+                            <div class="tab-pane fade" id="sora" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <form id="soraVideoForm">
+                                            <div class="mb-4">
+                                                <h4><i class="fas fa-magic me-2"></i>Sora 2 AI動画生成</h4>
+                                                <p class="text-muted">OpenAIの最新AI技術を使用して高品質な動画を生成します</p>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label for="soraPrompt" class="form-label">動画プロンプト</label>
+                                                <textarea class="form-control" id="soraPrompt" rows="4" 
+                                                    placeholder="例: 美しい夕日の中で、若い女性が新しいスマートフォンを紹介しながら、ゆっくりと歩いている動画。カメラは彼女を追いかけて、商品の特徴を映し出す。"></textarea>
+                                                <div class="form-text">
+                                                    <i class="fas fa-info-circle me-1"></i>
+                                                    具体的なシーン、被写体、動作、背景、照明条件を詳細に記述してください
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="soraModel" class="form-label">モデル</label>
+                                                        <select class="form-select" id="soraModel">
+                                                            <option value="sora-2">Sora 2（高速・柔軟性重視）</option>
+                                                            <option value="sora-2-pro">Sora 2 Pro（高品質・プロダクション）</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="soraSize" class="form-label">動画サイズ</label>
+                                                        <select class="form-select" id="soraSize">
+                                                            <option value="1280x720">1280x720（横長）</option>
+                                                            <option value="720x1280">720x1280（縦長）</option>
+                                                            <option value="1024x1024">1024x1024（正方形）</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="soraSeconds" class="form-label">動画の長さ（秒）</label>
+                                                        <select class="form-select" id="soraSeconds">
+                                                            <option value="4">4秒</option>
+                                                            <option value="8">8秒</option>
+                                                            <option value="16">16秒</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="soraReferenceImage" class="form-label">参照画像（オプション）</label>
+                                                        <input type="file" class="form-control" id="soraReferenceImage" accept="image/*">
+                                                        <div class="form-text">初期フレームとして使用する画像</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <button type="submit" class="btn btn-success btn-lg">
+                                                    <i class="fas fa-magic me-2"></i>Sora 2で動画生成
+                                                </button>
+                                            </div>
+                                        </form>
+                                        
+                                        <!-- Sora 2進行状況表示 -->
+                                        <div class="progress-container" id="soraProgressContainer" style="display: none;">
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between">
+                                                    <span id="soraProgressText">準備中...</span>
+                                                    <span id="soraProgressPercent">0%</span>
+                                                </div>
+                                                <div class="progress">
+                                                    <div class="progress-bar bg-gradient" id="soraProgressBar" role="progressbar" style="width: 0%"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Sora 2結果表示 -->
+                                        <div id="soraResultContainer" style="display: none;" class="mt-4">
+                                            <div class="alert alert-success">
+                                                <h5><i class="fas fa-check-circle me-2"></i>Sora 2動画生成完了！</h5>
+                                                <p id="soraResultMessage"></p>
+                                                <div id="soraVideoPreview" class="mt-3"></div>
+                                                <div class="mt-3">
+                                                    <button type="button" class="btn btn-primary" id="downloadSoraVideo">
+                                                        <i class="fas fa-download me-2"></i>動画をダウンロード
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-primary" id="downloadSoraThumbnail">
+                                                        <i class="fas fa-image me-2"></i>サムネイルをダウンロード
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-secondary" id="downloadSoraSpritesheet">
+                                                        <i class="fas fa-th me-2"></i>スプライトシートをダウンロード
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-4">
+                                        <div class="card bg-light">
+                                            <div class="card-header">
+                                                <h6><i class="fas fa-lightbulb me-2"></i>プロンプトのコツ</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <ul class="list-unstyled small">
+                                                    <li><i class="fas fa-check text-success me-2"></i><strong>ショットの種類:</strong> ワイドショット、クローズアップ、パンなど</li>
+                                                    <li><i class="fas fa-check text-success me-2"></i><strong>被写体:</strong> 人物、商品、環境を具体的に</li>
+                                                    <li><i class="fas fa-check text-success me-2"></i><strong>動作:</strong> 歩く、微笑む、商品を見るなど</li>
+                                                    <li><i class="fas fa-check text-success me-2"></i><strong>背景:</strong> 公園、オフィス、家など</li>
+                                                    <li><i class="fas fa-check text-success me-2"></i><strong>照明:</strong> 夕日、朝の光、室内照明など</li>
+                                                </ul>
+                                                
+                                                <hr>
+                                                
+                                                <h6><i class="fas fa-info-circle me-2"></i>制限事項</h6>
+                                                <ul class="list-unstyled small text-muted">
+                                                    <li><i class="fas fa-times text-danger me-2"></i>18歳未満向けの適切なコンテンツのみ</li>
+                                                    <li><i class="fas fa-times text-danger me-2"></i>著作権保護されたキャラクター・楽曲は不可</li>
+                                                    <li><i class="fas fa-times text-danger me-2"></i>実在の著名人は生成不可</li>
+                                                    <li><i class="fas fa-times text-danger me-2"></i>人間の顔を含む参照画像は現在不可</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentStep = 1;
+        let uploadedImageFile = null;
+        let currentVideoId = null;
+        let currentSoraVideoId = null;
+
+        // ステップ管理
+        function updateStepIndicator() {
+            for (let i = 1; i <= 4; i++) {
+                const step = document.getElementById(`step${i}`);
+                const content = document.getElementById(`stepContent${i}`);
+                
+                if (i === currentStep) {
+                    step.classList.add('active');
+                    content.style.display = 'block';
+                } else if (i < currentStep) {
+                    step.classList.remove('active');
+                    step.classList.add('completed');
+                    content.style.display = 'none';
+                } else {
+                    step.classList.remove('active', 'completed');
+                    content.style.display = 'none';
+                }
+            }
+
+            // ボタンの表示制御
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            
+            prevBtn.style.display = currentStep > 1 ? 'block' : 'none';
+            
+            if (currentStep === 4) {
+                nextBtn.style.display = 'none';
+            } else {
+                nextBtn.style.display = 'block';
+                nextBtn.textContent = currentStep === 3 ? '動画を生成' : '次へ';
+            }
+        }
+
+        function nextStep() {
+            if (currentStep < 4) {
+                currentStep++;
+                updateStepIndicator();
+            }
+        }
+
+        function previousStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateStepIndicator();
+            }
+        }
+
+        // 画像アップロード処理
+        const uploadArea = document.getElementById('uploadArea');
+        const productImageInput = document.getElementById('productImage');
+
+        uploadArea.addEventListener('click', () => productImageInput.click());
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleImageUpload(files[0]);
+            }
+        });
+
+        productImageInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleImageUpload(e.target.files[0]);
+            }
+        });
+
+        function handleImageUpload(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('画像ファイルを選択してください');
+                return;
+            }
+
+            uploadedImageFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const previewImg = document.getElementById('previewImg');
+                previewImg.src = e.target.result;
+                document.getElementById('imagePreview').style.display = 'block';
+                uploadArea.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeImage() {
+            uploadedImageFile = null;
+            document.getElementById('imagePreview').style.display = 'none';
+            uploadArea.style.display = 'block';
+            productImageInput.value = '';
+        }
+
+        // スクリプト文字数カウント
+        document.getElementById('script').addEventListener('input', (e) => {
+            document.getElementById('scriptLength').textContent = e.target.value.length;
+        });
+
+        // フォーム送信処理
+        document.getElementById('videoForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!uploadedImageFile) {
+                alert('商品画像をアップロードしてください');
+                return;
+            }
+
+            const script = document.getElementById('script').value.trim();
+            if (!script) {
+                alert('スクリプトを入力してください');
+                return;
+            }
+
+            // 画像をアップロード
+            const formData = new FormData();
+            formData.append('file', uploadedImageFile);
+
+            try {
+                const uploadResponse = await fetch('/api/upload-product-image', {
+                    method: 'POST',
+                    body: formData
+                });
+                const uploadResult = await uploadResponse.json();
+
+                if (!uploadResult.success) {
+                    throw new Error('画像のアップロードに失敗しました');
+                }
+
+                // 動画生成リクエスト
+                const videoRequest = {
+                    product_image_url: uploadResult.absolute_path || uploadResult.file_path,
+                    script: script,
+                    model_style: document.getElementById('modelStyle').value,
+                    voice_style: document.getElementById('voiceStyle').value
+                };
+
+                const response = await fetch('/api/generate-video', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(videoRequest)
+                });
+
+                const result = await response.json();
+                currentVideoId = result.video_id;
+
+                // 進行状況表示
+                document.getElementById('generateButtonContainer').style.display = 'none';
+                document.getElementById('progressContainer').style.display = 'block';
+
+                // ステータスポーリング
+                pollVideoStatus();
+
+            } catch (error) {
+                alert('エラーが発生しました: ' + error.message);
+            }
+        });
+
+        // ステータスポーリング
+        async function pollVideoStatus() {
+            try {
+                const response = await fetch(`/api/video-status/${currentVideoId}`);
+                const status = await response.json();
+
+                // 進行状況更新
+                document.getElementById('progressText').textContent = status.message;
+                document.getElementById('progressPercent').textContent = status.progress + '%';
+                document.getElementById('progressBar').style.width = status.progress + '%';
+
+                if (status.status === 'completed') {
+                    // 完了時の処理
+                    document.getElementById('progressContainer').style.display = 'none';
+                    document.getElementById('resultContainer').style.display = 'block';
+                    document.getElementById('resultMessage').textContent = status.message;
+                    
+                    if (status.video_url) {
+                        document.getElementById('videoPreview').innerHTML = `
+                            <video controls class="video-preview">
+                                <source src="${status.video_url}" type="video/mp4">
+                                お使いのブラウザは動画再生をサポートしていません。
+                            </video>
+                        `;
+                    }
+
+                    // ダウンロードボタンのイベント
+                    document.getElementById('downloadVideo').onclick = () => {
+                        window.open(status.video_url, '_blank');
+                    };
+                    document.getElementById('downloadThumbnail').onclick = () => {
+                        window.open(status.thumbnail_url, '_blank');
+                    };
+
+                } else if (status.status === 'failed') {
+                    alert('動画生成に失敗しました: ' + status.message);
+                    document.getElementById('generateButtonContainer').style.display = 'block';
+                    document.getElementById('progressContainer').style.display = 'none';
+                } else {
+                    // 継続してポーリング
+                    setTimeout(pollVideoStatus, 2000);
+                }
+
+            } catch (error) {
+                console.error('ステータス取得エラー:', error);
+                setTimeout(pollVideoStatus, 5000);
+            }
+        }
+
+        // ========== Sora 2 API 機能 ==========
+        
+        // Sora 2動画生成フォーム処理
+        document.getElementById('soraVideoForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const prompt = document.getElementById('soraPrompt').value.trim();
+            if (!prompt) {
+                alert('動画プロンプトを入力してください');
+                return;
+            }
+            
+            const soraRequest = {
+                prompt: prompt,
+                model: document.getElementById('soraModel').value,
+                size: document.getElementById('soraSize').value,
+                seconds: document.getElementById('soraSeconds').value,
+                input_reference_url: null
+            };
+            
+            // 参照画像の処理
+            const referenceImage = document.getElementById('soraReferenceImage').files[0];
+            if (referenceImage) {
+                // 参照画像をアップロード
+                const formData = new FormData();
+                formData.append('file', referenceImage);
+                
+                try {
+                    const uploadResponse = await fetch('/api/upload-product-image', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const uploadResult = await uploadResponse.json();
+                    
+                    if (uploadResult.success) {
+                        soraRequest.input_reference_url = uploadResult.file_url || uploadResult.file_path;
+                    }
+                } catch (error) {
+                    console.warn('参照画像のアップロードに失敗しました:', error);
+                }
+            }
+            
+            try {
+                // Sora 2動画生成リクエスト
+                const response = await fetch('/api/sora/generate-video', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(soraRequest)
+                });
+                
+                const result = await response.json();
+                currentSoraVideoId = result.video_id;
+                
+                // 進行状況表示
+                document.getElementById('soraProgressContainer').style.display = 'block';
+                
+                // ステータスポーリング
+                pollSoraVideoStatus();
+                
+            } catch (error) {
+                alert('エラーが発生しました: ' + error.message);
+            }
+        });
+        
+        // Sora 2動画ステータスポーリング
+        async function pollSoraVideoStatus() {
+            try {
+                const response = await fetch(`/api/sora/video-status/${currentSoraVideoId}`);
+                const status = await response.json();
+                
+                // 進行状況更新
+                document.getElementById('soraProgressText').textContent = status.message || 'Sora 2で動画生成中...';
+                document.getElementById('soraProgressPercent').textContent = status.progress + '%';
+                document.getElementById('soraProgressBar').style.width = status.progress + '%';
+                
+                if (status.status === 'completed') {
+                    // 完了時の処理
+                    document.getElementById('soraProgressContainer').style.display = 'none';
+                    document.getElementById('soraResultContainer').style.display = 'block';
+                    document.getElementById('soraResultMessage').textContent = status.message;
+                    
+                    if (status.video_url) {
+                        document.getElementById('soraVideoPreview').innerHTML = `
+                            <video controls class="video-preview">
+                                <source src="${status.video_url}" type="video/mp4">
+                                お使いのブラウザは動画再生をサポートしていません。
+                            </video>
+                        `;
+                    }
+                    
+                    // ダウンロードボタンのイベント
+                    document.getElementById('downloadSoraVideo').onclick = () => {
+                        window.open(status.video_url, '_blank');
+                    };
+                    document.getElementById('downloadSoraThumbnail').onclick = () => {
+                        window.open(status.thumbnail_url, '_blank');
+                    };
+                    document.getElementById('downloadSoraSpritesheet').onclick = () => {
+                        window.open(status.spritesheet_url, '_blank');
+                    };
+                    
+                } else if (status.status === 'failed') {
+                    alert('Sora 2動画生成に失敗しました: ' + (status.message || 'Unknown error'));
+                    document.getElementById('soraProgressContainer').style.display = 'none';
+                } else {
+                    // 継続してポーリング
+                    setTimeout(pollSoraVideoStatus, 3000);
+                }
+                
+            } catch (error) {
+                console.error('Sora 2ステータス取得エラー:', error);
+                setTimeout(pollSoraVideoStatus, 5000);
+            }
+        }
+        
+        // ========== 初期化 ==========
+        updateStepIndicator();
+    </script>
+</body>
+</html>
