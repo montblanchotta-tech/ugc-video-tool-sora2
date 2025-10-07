@@ -214,8 +214,7 @@ async def monitor_sora_video_generation(video_id: str):
             progress_store[video_id]["message"] = f"監視中にエラーが発生しました: {str(e)}"
 
 # Vercel用のハンドラー
-def handler(request):
-    return app
+app = app
 
 if __name__ == "__main__":
     import uvicorn
