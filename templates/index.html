@@ -806,10 +806,26 @@
                 console.log('Progress value:', status.progress, 'Type:', typeof status.progress);
                 
                 // 進行状況更新（キャッシュ対応）
-                document.getElementById('soraProgressText').textContent = status.message || 'Sora 2で動画生成中...';
+                const progressText = document.getElementById('soraProgressText');
+                const progressPercent = document.getElementById('soraProgressPercent');
+                const progressBar = document.getElementById('soraProgressBar');
+                
+                console.log('DOM elements:', { progressText, progressPercent, progressBar });
+                
+                if (progressText) progressText.textContent = status.message || 'Sora 2で動画生成中...';
+                
                 const progress = typeof status.progress === 'number' ? status.progress : 0;
-                document.getElementById('soraProgressPercent').textContent = Math.round(progress) + '%';
-                document.getElementById('soraProgressBar').style.width = Math.round(progress) + '%';
+                console.log('Updating progress to:', progress);
+                
+                if (progressPercent) {
+                    progressPercent.textContent = Math.round(progress) + '%';
+                    console.log('Progress percent updated to:', progressPercent.textContent);
+                }
+                
+                if (progressBar) {
+                    progressBar.style.width = Math.round(progress) + '%';
+                    console.log('Progress bar width updated to:', progressBar.style.width);
+                }
                 
                 if (status.status === 'completed') {
                     // 完了時の処理
