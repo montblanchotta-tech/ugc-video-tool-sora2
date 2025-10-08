@@ -776,6 +776,12 @@
                 console.log('Starting Sora 2 status polling in 1 second...');
                 setTimeout(pollSoraVideoStatus, 1000);
                 
+                // フォールバック用の強制更新も開始（10秒後から）
+                setTimeout(() => {
+                    console.log('Starting fallback progress updates...');
+                    setInterval(forceProgressUpdate, 5000);
+                }, 10000);
+                
             } catch (error) {
                 alert('エラーが発生しました: ' + error.message);
             }
@@ -863,8 +869,57 @@
                 
             } catch (error) {
                 console.error('Sora 2ステータス取得エラー:', error);
+                // エラー時も継続してポーリング
                 setTimeout(pollSoraVideoStatus, 5000);
             }
+        }
+        
+        // 強制的な進行状況更新（フォールバック）
+        function forceProgressUpdate() {
+            if (!currentSoraVideoId) return;
+            
+            fetch(`/api/sora/video-status/${currentSoraVideoId}`)
+                .then(response => response.json())
+                .then(status => {
+                    console.log('Force update - Status:', status);
+                    
+                    const progressPercent = document.getElementById('soraProgressPercent');
+                    const progressBar = document.getElementById('soraProgressBar');
+                    const progressText = document.getElementById('soraProgressText');
+                    
+                    if (progressPercent) progressPercent.textContent = Math.round(status.progress || 0) + '%';
+                    if (progressBar) progressBar.style.width = Math.round(status.progress || 0) + '%';
+                    if (progressText) progressText.textContent = status.message || 'Sora 2で動画生成中...';
+                    
+                    if (status.status === 'completed') {
+                        // 完了時の処理
+                        document.getElementById('soraProgressContainer').style.display = 'none';
+                        document.getElementById('soraResultContainer').style.display = 'block';
+                        
+                        if (status.video_url) {
+                            document.getElementById('soraVideoPreview').innerHTML = `
+                                <video controls class="video-preview">
+                                    <source src="${status.video_url}" type="video/mp4">
+                                    お使いのブラウザは動画再生をサポートしていません。
+                                </video>
+                            `;
+                        }
+                        
+                        // ダウンロードボタンのイベント
+                        document.getElementById('soraDownloadVideo').onclick = () => {
+                            window.open(status.video_url, '_blank');
+                        };
+                        document.getElementById('soraDownloadThumbnail').onclick = () => {
+                            window.open(status.thumbnail_url, '_blank');
+                        };
+                        document.getElementById('soraDownloadSpritesheet').onclick = () => {
+                            window.open(status.spritesheet_url, '_blank');
+                        };
+                    }
+                })
+                .catch(error => {
+                    console.error('Force update error:', error);
+                });
         }
         
         // ========== 初期化 ==========
