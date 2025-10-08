@@ -761,7 +761,10 @@
                 });
                 
                 const result = await response.json();
+                console.log('Sora 2 Generation Response:', result);
+                
                 currentSoraVideoId = result.video_id;
+                console.log('Current Sora Video ID set to:', currentSoraVideoId);
                 
                 // 進行状況表示の初期化
                 document.getElementById('soraProgressContainer').style.display = 'block';
@@ -770,6 +773,7 @@
                 document.getElementById('soraProgressBar').style.width = '0%';
                 
                 // ステータスポーリング開始（少し遅延して開始）
+                console.log('Starting Sora 2 status polling in 1 second...');
                 setTimeout(pollSoraVideoStatus, 1000);
                 
             } catch (error) {
@@ -780,17 +784,22 @@
         // Sora 2動画ステータスポーリング
         async function pollSoraVideoStatus() {
             try {
+                console.log('Polling Sora 2 status for video ID:', currentSoraVideoId);
+                
                 if (!currentSoraVideoId) {
                     console.error('No Sora video ID available');
                     return;
                 }
                 
                 const response = await fetch(`/api/sora/video-status/${currentSoraVideoId}`);
+                console.log('Status response:', response.status, response.ok);
+                
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
                 const status = await response.json();
+                console.log('Status data:', status);
                 
                 // デバッグ用ログ
                 console.log('Sora 2 Status:', status);
