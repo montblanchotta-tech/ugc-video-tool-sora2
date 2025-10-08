@@ -789,11 +789,15 @@
                 
                 const status = await response.json();
                 
-                // 進行状況更新
+                // デバッグ用ログ
+                console.log('Sora 2 Status:', status);
+                console.log('Progress value:', status.progress, 'Type:', typeof status.progress);
+                
+                // 進行状況更新（キャッシュ対応）
                 document.getElementById('soraProgressText').textContent = status.message || 'Sora 2で動画生成中...';
-                const progress = status.progress || 0;
-                document.getElementById('soraProgressPercent').textContent = progress + '%';
-                document.getElementById('soraProgressBar').style.width = progress + '%';
+                const progress = typeof status.progress === 'number' ? status.progress : 0;
+                document.getElementById('soraProgressPercent').textContent = Math.round(progress) + '%';
+                document.getElementById('soraProgressBar').style.width = Math.round(progress) + '%';
                 
                 if (status.status === 'completed') {
                     // 完了時の処理
