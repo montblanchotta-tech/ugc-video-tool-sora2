@@ -760,11 +760,14 @@
                 const result = await response.json();
                 currentSoraVideoId = result.video_id;
                 
-                // 進行状況表示
+                // 進行状況表示の初期化
                 document.getElementById('soraProgressContainer').style.display = 'block';
+                document.getElementById('soraProgressText').textContent = 'Sora 2で動画生成を開始しています...';
+                document.getElementById('soraProgressPercent').textContent = '0%';
+                document.getElementById('soraProgressBar').style.width = '0%';
                 
-                // ステータスポーリング
-                pollSoraVideoStatus();
+                // ステータスポーリング開始（少し遅延して開始）
+                setTimeout(pollSoraVideoStatus, 1000);
                 
             } catch (error) {
                 alert('エラーが発生しました: ' + error.message);
@@ -774,13 +777,23 @@
         // Sora 2動画ステータスポーリング
         async function pollSoraVideoStatus() {
             try {
+                if (!currentSoraVideoId) {
+                    console.error('No Sora video ID available');
+                    return;
+                }
+                
                 const response = await fetch(`/api/sora/video-status/${currentSoraVideoId}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const status = await response.json();
                 
                 // 進行状況更新
                 document.getElementById('soraProgressText').textContent = status.message || 'Sora 2で動画生成中...';
-                document.getElementById('soraProgressPercent').textContent = status.progress + '%';
-                document.getElementById('soraProgressBar').style.width = status.progress + '%';
+                const progress = status.progress || 0;
+                document.getElementById('soraProgressPercent').textContent = progress + '%';
+                document.getElementById('soraProgressBar').style.width = progress + '%';
                 
                 if (status.status === 'completed') {
                     // 完了時の処理
