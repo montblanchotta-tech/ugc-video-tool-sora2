@@ -5,23 +5,12 @@
       "src": "api/index.py",
       "use": "@vercel/python",
       "config": {
-        "maxLambdaSize": "50mb"
+        "maxLambdaSize": "50mb",
+        "runtime": "python3.11"
       }
-    },
-    {
-      "src": "static/**",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "templates/**",
-      "use": "@vercel/static"
     }
   ],
   "routes": [
-    {
-      "src": "/static/(.*)",
-      "dest": "/static/$1"
-    },
     {
       "src": "/(.*)",
       "dest": "api/index.py"
@@ -29,5 +18,10 @@
   ],
   "env": {
     "PYTHON_VERSION": "3.11"
+  },
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 300
+    }
   }
 }

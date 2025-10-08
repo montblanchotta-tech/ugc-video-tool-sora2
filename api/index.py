@@ -33,9 +33,20 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="UGC動画作成ツール", version="1.0.0")
 
-# 動画プロセッサーインスタンス
-video_processor = VideoProcessor()
-sora_service = SoraService()
+# 動画プロセッサーインスタンス（エラーハンドリング付き）
+try:
+    video_processor = VideoProcessor()
+    logger.info("VideoProcessor initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize VideoProcessor: {e}")
+    video_processor = None
+
+try:
+    sora_service = SoraService()
+    logger.info("SoraService initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize SoraService: {e}")
+    sora_service = None
 
 # 進行状況を保存するための辞書
 progress_store: Dict[str, Dict[str, Any]] = {}
