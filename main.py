@@ -26,6 +26,7 @@ app = FastAPI(title="UGC動画作成ツール", version="1.0.0")
 
 # 静的ファイルとテンプレートの設定
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 templates = Jinja2Templates(directory="templates")
 
 # 動画プロセッサーインスタンス
@@ -207,11 +208,14 @@ async def process_video_generation(video_id: str, video_request: VideoRequest):
         
         if result["success"]:
             # 成功時のステータス更新
+            actual_video_id = result.get("video_id", video_id)  # 実際のvideo_idを取得
+            logger.info(f"✓ Video generation completed. Request ID: {video_id}, Actual video ID: {actual_video_id}")
             progress_store[video_id]["status"] = "completed"
             progress_store[video_id]["progress"] = 100
             progress_store[video_id]["message"] = "動画生成が完了しました"
-            progress_store[video_id]["video_url"] = f"/api/download-video/{video_id}"
-            progress_store[video_id]["thumbnail_url"] = f"/api/download-thumbnail/{video_id}"
+            progress_store[video_id]["video_url"] = f"/api/download-video/{actual_video_id}"
+            progress_store[video_id]["thumbnail_url"] = f"/api/download-thumbnail/{actual_video_id}"
+            logger.info(f"✓ Download URL set to: /api/download-video/{actual_video_id}")
         else:
             # 失敗時のステータス更新
             progress_store[video_id]["status"] = "failed"
