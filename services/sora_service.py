@@ -11,8 +11,14 @@ class SoraService:
     """Sora 2 APIを使用した動画生成サービス"""
     
     def __init__(self):
-        self.openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        self.async_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            self.openai_client = OpenAI(api_key=api_key)
+            self.async_client = AsyncOpenAI(api_key=api_key)
+        else:
+            logger.warning("OPENAI_API_KEY not set, Sora 2 service will not be available")
+            self.openai_client = None
+            self.async_client = None
         
     async def generate_video_from_prompt(
         self,

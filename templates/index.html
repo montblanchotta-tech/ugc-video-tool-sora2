@@ -125,14 +125,47 @@
             text-align: center;
             transition: all 0.3s ease;
             cursor: pointer;
+            background-color: #fafafa;
         }
         .upload-area:hover {
             border-color: #007bff;
-            background-color: #f8f9fa;
+            background-color: #f0f8ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
         }
         .upload-area.dragover {
             border-color: #007bff;
             background-color: #e3f2fd;
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.25);
+        }
+        
+        .upload-area .fas {
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area:hover .fas {
+            color: #007bff !important;
+            transform: scale(1.1);
+        }
+        
+        .file-info-card {
+            border-left: 4px solid #007bff;
+        }
+        
+        .alert {
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         .progress-container {
             display: none;
@@ -241,18 +274,49 @@
                             <!-- Step 1: 商品画像アップロード -->
                             <div class="step-content" id="stepContent1">
                                 <h4><i class="fas fa-image me-2"></i>商品画像をアップロード</h4>
+                                
+                                <!-- エラーメッセージ表示エリア -->
+                                <div id="uploadError" class="alert alert-danger" style="display: none;">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <span id="uploadErrorMessage"></span>
+                                </div>
+                                
                                 <div class="upload-area" id="uploadArea">
                                     <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
                                     <p class="mb-2">商品画像をドラッグ&ドロップまたはクリックして選択</p>
-                                    <p class="text-muted small">対応形式: JPG, PNG, WebP</p>
-                                    <input type="file" id="productImage" accept="image/*" style="display: none;">
-                                </div>
-                                <div id="imagePreview" class="mt-3" style="display: none;">
-                                    <img id="previewImg" class="img-fluid rounded" style="max-height: 300px;">
+                                    <p class="text-muted small">対応形式: JPG, PNG, WebP (最大10MB)</p>
+                                    <input type="file" id="productImage" accept="image/jpeg,image/jpg,image/png,image/webp" style="display: none;">
                                     <div class="mt-2">
-                                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeImage()">
-                                            <i class="fas fa-trash me-1"></i>削除
-                                        </button>
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            推奨サイズ: 512px以上（縦横比自由）
+                                        </small>
+                                    </div>
+                                </div>
+                                
+                                <div id="imagePreview" class="mt-3" style="display: none;">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-8">
+                                                    <img id="previewImg" class="img-fluid rounded" style="max-height: 300px; width: 100%; object-fit: cover;">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <h6>ファイル情報</h6>
+                                                    <div id="fileInfo" class="small text-muted">
+                                                        <!-- ファイル情報がここに表示されます -->
+                                                    </div>
+                                                    <div class="mt-3">
+                                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="changeImage()">
+                                                            <i class="fas fa-edit me-1"></i>変更
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-danger btn-sm ms-2" onclick="removeImage()">
+                                                            <i class="fas fa-trash me-1"></i>削除
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -406,8 +470,19 @@
                                                 <div class="col-md-6">
                                                     <div class="mb-3">
                                                         <label for="soraReferenceImage" class="form-label">参照画像（オプション）</label>
-                                                        <input type="file" class="form-control" id="soraReferenceImage" accept="image/*">
-                                                        <div class="form-text">初期フレームとして使用する画像</div>
+                                                        <input type="file" class="form-control" id="soraReferenceImage" accept="image/jpeg,image/jpg,image/png,image/webp">
+                                                        <div class="form-text">
+                                                            初期フレームとして使用する画像<br>
+                                                            <small class="text-muted">対応形式: JPG, PNG, WebP (最大10MB)</small>
+                                                        </div>
+                                                        <div id="soraImagePreview" class="mt-2" style="display: none;">
+                                                            <img id="soraPreviewImg" class="img-thumbnail" style="max-height: 100px;">
+                                                            <div class="mt-1">
+                                                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeSoraImage()">
+                                                                    <i class="fas fa-trash me-1"></i>削除
+                                                                </button>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -570,20 +645,93 @@
         });
 
         function handleImageUpload(file) {
-            if (!file.type.startsWith('image/')) {
-                alert('画像ファイルを選択してください');
+            // エラーメッセージをクリア
+            hideUploadError();
+            
+            // ファイル形式の検証
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                showUploadError('対応していないファイル形式です。JPG、PNG、WebPファイルを選択してください。');
                 return;
             }
-
+            
+            // ファイルサイズの検証（10MB制限）
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            if (file.size > maxSize) {
+                showUploadError('ファイルサイズが大きすぎます。10MB以下のファイルを選択してください。');
+                return;
+            }
+            
+            // ファイルが選択された
             uploadedImageFile = file;
+            
+            // 画像のプレビュー表示
             const reader = new FileReader();
             reader.onload = (e) => {
                 const previewImg = document.getElementById('previewImg');
                 previewImg.src = e.target.result;
+                
+                // ファイル情報を表示
+                displayFileInfo(file);
+                
+                // プレビューエリアを表示
                 document.getElementById('imagePreview').style.display = 'block';
                 uploadArea.style.display = 'none';
+                
+                // 画像読み込み後にサイズをチェック
+                previewImg.onload = () => {
+                    checkImageDimensions(previewImg);
+                };
             };
             reader.readAsDataURL(file);
+        }
+        
+        function displayFileInfo(file) {
+            const fileInfo = document.getElementById('fileInfo');
+            const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+            
+            fileInfo.innerHTML = `
+                <div class="mb-2">
+                    <strong>ファイル名:</strong><br>
+                    <span class="text-break">${file.name}</span>
+                </div>
+                <div class="mb-2">
+                    <strong>サイズ:</strong> ${sizeInMB} MB
+                </div>
+                <div class="mb-2">
+                    <strong>形式:</strong> ${file.type}
+                </div>
+            `;
+        }
+        
+        function checkImageDimensions(img) {
+            const minSize = 512; // 最小推奨サイズ
+            
+            if (img.naturalWidth < minSize && img.naturalHeight < minSize) {
+                showUploadError(`画像の解像度が低い可能性があります。推奨サイズ: 短辺${minSize}px以上`);
+            }
+        }
+        
+        function showUploadError(message) {
+            const errorDiv = document.getElementById('uploadError');
+            const errorMessage = document.getElementById('uploadErrorMessage');
+            
+            errorMessage.textContent = message;
+            errorDiv.style.display = 'block';
+            
+            // 3秒後に自動でエラーメッセージを非表示
+            setTimeout(() => {
+                hideUploadError();
+            }, 5000);
+        }
+        
+        function hideUploadError() {
+            document.getElementById('uploadError').style.display = 'none';
+        }
+        
+        function changeImage() {
+            // ファイル選択ダイアログを開く
+            document.getElementById('productImage').click();
         }
 
         function removeImage() {
@@ -591,6 +739,44 @@
             document.getElementById('imagePreview').style.display = 'none';
             uploadArea.style.display = 'block';
             productImageInput.value = '';
+            hideUploadError();
+        }
+        
+        // Sora 2参照画像の処理
+        document.getElementById('soraReferenceImage').addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleSoraImageUpload(e.target.files[0]);
+            }
+        });
+        
+        function handleSoraImageUpload(file) {
+            // ファイル形式の検証
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('対応していないファイル形式です。JPG、PNG、WebPファイルを選択してください。');
+                return;
+            }
+            
+            // ファイルサイズの検証（10MB制限）
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            if (file.size > maxSize) {
+                alert('ファイルサイズが大きすぎます。10MB以下のファイルを選択してください。');
+                return;
+            }
+            
+            // 画像のプレビュー表示
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const previewImg = document.getElementById('soraPreviewImg');
+                previewImg.src = e.target.result;
+                document.getElementById('soraImagePreview').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function removeSoraImage() {
+            document.getElementById('soraReferenceImage').value = '';
+            document.getElementById('soraImagePreview').style.display = 'none';
         }
 
         // スクリプト文字数カウント

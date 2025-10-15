@@ -9,3 +9,5 @@ aiofiles>=23.2.1
 pydantic>=2.5.0
 httpx>=0.25.2
 openai>=1.58.0
+fish-audio-sdk>=2025.6.3
+google-generativeai>=0.3.0

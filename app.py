@@ -190,10 +190,15 @@ async def upload_product_image(file: UploadFile = File(...)):
 async def process_video_generation(video_id: str, video_request: VideoRequest):
     """バックグラウンドで動画生成を実行"""
     try:
+        # 進行状況更新用のコールバック関数
+        def update_progress(progress: int, message: str):
+            progress_store[video_id]["progress"] = progress
+            progress_store[video_id]["message"] = message
+            logger.info(f"Video {video_id}: {progress}% - {message}")
+        
         # ステータスを更新
         progress_store[video_id]["status"] = "processing"
-        progress_store[video_id]["progress"] = 10
-        progress_store[video_id]["message"] = "モデル画像を生成中..."
+        update_progress(10, "動画生成を開始しています...")
         
         # ファイルパスを絶対パスに変換
         import os
@@ -204,12 +209,17 @@ async def process_video_generation(video_id: str, video_request: VideoRequest):
             # 相対パスの場合、絶対パスに変換
             product_image_path = os.path.join(os.getcwd(), video_request.product_image_url)
         
+        logger.info(f"Starting video generation for {video_id}")
+        logger.info(f"Product image: {product_image_path}")
+        logger.info(f"Script: {video_request.script}")
+        
         # 動画生成を実行
         result = await video_processor.generate_ugc_video(
             product_image_path=product_image_path,
             script=video_request.script,
             model_style=video_request.model_style,
-            voice_style=video_request.voice_style
+            voice_style=video_request.voice_style,
+            progress_callback=update_progress
         )
         
         if result["success"]:

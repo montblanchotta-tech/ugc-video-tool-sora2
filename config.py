@@ -13,7 +13,7 @@ class Config:
     # API Endpoints
     GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta")
     FISHAUDIO_BASE_URL = os.getenv("FISHAUDIO_BASE_URL", "https://api.fish.audio/v1")
-    HEDRA_BASE_URL = os.getenv("HEDRA_BASE_URL", "https://api.hedra.com/v1")
+    HEDRA_BASE_URL = os.getenv("HEDRA_BASE_URL", "https://api.hedra.com/web-app/public")
     
     # Application Settings
     HOST = os.getenv("HOST", "0.0.0.0")
@@ -24,6 +24,9 @@ class Config:
     UPLOAD_DIR = "uploads"
     OUTPUT_DIR = "outputs"
     TEMP_DIR = "temp"
+    
+    # Default model image
+    DEFAULT_MODEL_IMAGE = os.path.join(UPLOAD_DIR, "model_face.jpg")
     
     # Supported file formats
     SUPPORTED_IMAGE_FORMATS = [".jpg", ".jpeg", ".png", ".webp"]

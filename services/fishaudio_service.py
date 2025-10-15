@@ -1,170 +1,163 @@
-import httpx
-import asyncio
-import os
-from typing import Optional, Dict, Any
-from config import Config
+"""
+FishAudio TTS Service - 正しいSDK実装
+"""
 import logging
+import tempfile
+import os
+from typing import Optional
+from fish_audio_sdk import Session, TTSRequest
 
 logger = logging.getLogger(__name__)
 
+
 class FishAudioService:
-    def __init__(self):
-        self.api_key = Config.FISHAUDIO_API_KEY
-        self.base_url = Config.FISHAUDIO_BASE_URL
-        self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-    
-    async def generate_voice(self, 
-                           text: str, 
-                           voice_style: str = "friendly",
-                           language: str = "ja") -> Optional[str]:
+    """FishAudio TTS サービス（正しいSDK実装）"""
+
+    def __init__(self, api_key: str):
         """
-        テキストから音声を生成（実際のAPI実装 - 現在はモック）
+        初期化
+
+        Args:
+            api_key: FishAudio APIキー
+        """
+        self.api_key = api_key
+        self.session = Session(api_key)
+        logger.info("FishAudio service initialized with SDK")
+
+    async def generate_voice(
+        self,
+        text: str,
+        voice_style: str = "friendly",
+        language: str = "ja",
+        reference_id: Optional[str] = None
+    ) -> Optional[str]:
+        """
+        テキストから音声を生成（正しいSDK実装）
+
+        Args:
+            text: 生成するテキスト
+            voice_style: 音声スタイル
+            language: 言語コード
+            reference_id: 参照音声のモデルID（オプション）
+
+        Returns:
+            生成された音声ファイルのパス
         """
         try:
-            logger.info(f"FISHAUDIO API: generating voice for text: {text[:50]}...")
-            
-            async with httpx.AsyncClient() as client:
-                # FishAudio APIの正しいペイロード形式
-                payload = {
-                    "text": text,
-                    "reference_id": "default",  # デフォルトの音声参照
-                    "format": "mp3",
-                    "latency": "normal"
-                }
-                
-                logger.info(f"FISHAUDIO API: Sending request to {self.base_url}/tts")
-                
-                response = await client.post(
-                    f"{self.base_url}/tts",
-                    json=payload,
-                    headers=self.headers,
-                    timeout=60.0
-                )
-                
-                logger.info(f"FISHAUDIO API: Response status: {response.status_code}")
-                
-                if response.status_code == 200:
-                    # 音声データを直接取得
-                    import tempfile
-                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
-                    temp_file.write(response.content)
-                    temp_file.close()
-                    
-                    logger.info(f"FISHAUDIO API: Saved audio to: {temp_file.name}")
-                    return temp_file.name
-                else:
-                    logger.error(f"FISHAUDIO API error: {response.status_code} - {response.text}")
-                    
-                    # エラーの場合はモック実装にフォールバック
-                    logger.info(f"FISHAUDIO API failed, using MOCK MODE for text: {text[:50]}...")
-                    import tempfile
-                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
-                    temp_file.close()
-                    with open(temp_file.name, 'w') as f:
-                        f.write("mock audio data")
-                    logger.info(f"MOCK MODE: created mock audio file at {temp_file.name}")
-                    return temp_file.name
-                    
+            logger.info(f"FishAudio SDK: Generating voice for text: {text[:50]}...")
+
+            # TTSリクエストを作成
+            tts_request = TTSRequest(
+                text=text,
+                reference_id=reference_id  # 事前にアップロードされたモデルIDを使用
+            )
+
+            # 一時ファイルを作成
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+
+            # 同期APIを使用して音声を生成
+            logger.info("FishAudio SDK: Starting TTS generation...")
+            for chunk in self.session.tts(tts_request):
+                temp_file.write(chunk)
+
+            temp_file.close()
+
+            logger.info(f"FishAudio SDK: Audio saved to {temp_file.name}")
+            return temp_file.name
+
         except Exception as e:
-            logger.error(f"FISHAUDIO API: Error generating voice: {str(e)}", exc_info=True)
-            
+            logger.error(f"FishAudio SDK: Error generating voice: {str(e)}", exc_info=True)
+
             # エラーの場合はモック実装にフォールバック
             try:
-                import tempfile
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+                logger.warning("FishAudio SDK failed, falling back to MOCK MODE")
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+                temp_file.write(b"mock audio data")
                 temp_file.close()
-                with open(temp_file.name, 'w') as f:
-                    f.write("mock audio data")
-                logger.info(f"MOCK MODE (fallback): created mock audio file at {temp_file.name}")
+                logger.info(f"MOCK MODE: Created mock audio file at {temp_file.name}")
                 return temp_file.name
-            except:
+            except Exception as mock_error:
+                logger.error(f"MOCK MODE failed: {str(mock_error)}")
                 return None
-    
-    def _get_speaker_id(self, voice_style: str) -> str:
+
+    async def list_available_voices(self) -> Optional[list]:
         """
-        音声スタイルに対応するスピーカーIDを取得
-        """
-        speaker_mapping = {
-            "friendly": "friendly_female",
-            "professional": "professional_male", 
-            "energetic": "energetic_female",
-            "calm": "calm_male"
-        }
-        return speaker_mapping.get(voice_style, "friendly_female")
-    
-    async def check_voice_generation_status(self, task_id: str) -> Dict[str, Any]:
-        """
-        音声生成タスクのステータスを確認
+        利用可能な音声モデルのリストを取得
+
+        Returns:
+            音声モデルのリスト
         """
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.base_url}/tasks/{task_id}",
-                    headers=self.headers,
-                    timeout=30.0
-                )
-                
-                if response.status_code == 200:
-                    return response.json()
-                else:
-                    logger.error(f"Voice status check error: {response.status_code}")
-                    return {"status": "error", "message": "Failed to check voice status"}
-                    
+            logger.info("FishAudio SDK: Listing available models...")
+            models = self.session.list_models()
+            logger.info(f"FishAudio SDK: Found {len(models.items) if hasattr(models, 'items') else 0} models")
+            return models.items if hasattr(models, 'items') else []
         except Exception as e:
-            logger.error(f"Error checking voice status: {str(e)}")
-            return {"status": "error", "message": str(e)}
-    
+            logger.error(f"FishAudio SDK: Error listing voices: {str(e)}")
+            return None
+
+    async def get_model_info(self, model_id: str) -> Optional[dict]:
+        """
+        特定の音声モデルの情報を取得
+
+        Args:
+            model_id: モデルID
+
+        Returns:
+            モデル情報の辞書
+        """
+        try:
+            logger.info(f"FishAudio SDK: Getting model info for {model_id}...")
+            model = self.session.get_model(model_id)
+            return {
+                "id": model_id,
+                "title": getattr(model, "title", "Unknown"),
+                "description": getattr(model, "description", "")
+            }
+        except Exception as e:
+            logger.error(f"FishAudio SDK: Error getting model info: {str(e)}")
+            return None
+
     async def download_audio(self, audio_path: str, save_path: str) -> bool:
         """
-        生成された音声ファイルをコピー（モック実装）
+        音声ファイルをダウンロード（コピー）
+
+        Args:
+            audio_path: 元の音声ファイルパス
+            save_path: 保存先パス
+
+        Returns:
+            成功したかどうか
         """
         try:
-            logger.info(f"FULL MOCK MODE: copying audio from {audio_path} to {save_path}")
-            
-            # モック実装：ファイルをコピー
             import shutil
             if os.path.exists(audio_path):
                 shutil.copy2(audio_path, save_path)
-                logger.info(f"FULL MOCK MODE: audio copy successful")
+                logger.info(f"Audio file copied from {audio_path} to {save_path}")
                 return True
             else:
-                logger.warning(f"FULL MOCK MODE: source audio not found, creating dummy file")
-                # ダミーファイルを作成
-                with open(save_path, 'w') as f:
-                    f.write("dummy audio")
-                return True
-                    
+                logger.error(f"Audio file not found: {audio_path}")
+                return False
         except Exception as e:
-            logger.error(f"FULL MOCK MODE: Error copying audio: {str(e)}")
-            # エラーでもダミーファイルを作成して成功を返す
-            try:
-                with open(save_path, 'w') as f:
-                    f.write("error dummy audio")
-                return True
-            except:
-                return True  # それでもTrueを返す
-    
-    async def get_available_voices(self) -> Optional[Dict[str, Any]]:
+            logger.error(f"Error copying audio file: {str(e)}")
+            return False
+
+    def cleanup(self, file_path: str) -> bool:
         """
-        利用可能な音声スタイルを取得
+        一時ファイルをクリーンアップ
+
+        Args:
+            file_path: 削除するファイルパス
+
+        Returns:
+            成功したかどうか
         """
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.base_url}/voices",
-                    headers=self.headers,
-                    timeout=30.0
-                )
-                
-                if response.status_code == 200:
-                    return response.json()
-                else:
-                    logger.error(f"Failed to get voices: {response.status_code}")
-                    return None
-                    
+            if os.path.exists(file_path):
+                os.unlink(file_path)
+                logger.info(f"Cleaned up temporary file: {file_path}")
+                return True
+            return False
         except Exception as e:
-            logger.error(f"Error getting voices: {str(e)}")
-            return None
+            logger.error(f"Error cleaning up file {file_path}: {str(e)}")
+            return False

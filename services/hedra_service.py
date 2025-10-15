@@ -294,6 +294,18 @@ class HedraService:
         try:
             logger.info(f"Hedra API: Downloading video from {video_url}")
 
+            # ローカルファイルパスの場合は直接コピー
+            if not video_url.startswith(('http://', 'https://')):
+                if os.path.exists(video_url):
+                    import shutil
+                    shutil.copy2(video_url, save_path)
+                    logger.info(f"Hedra API: Local video file copied to {save_path}")
+                    return True
+                else:
+                    logger.error(f"Hedra API: Local file not found: {video_url}")
+                    return False
+
+            # HTTP/HTTPS URLの場合はダウンロード
             async with httpx.AsyncClient(timeout=300.0) as client:
                 response = await client.get(video_url)
 
